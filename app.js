@@ -3,7 +3,9 @@ const cors = require("cors");
 require("dotenv").config();
 const mongoose = require("mongoose");
 const User = require("./models/user.model");
-const md5 = require("md5"); // for encryption.
+// const md5 = require("md5"); // for encryption.
+const bcrypt = require("bcrypt");
+const saltRounds = 10;
 
 const port = process.env.PORT || 5000;
 const app = express();
@@ -34,12 +36,16 @@ app.post("/register", async (req, res) => {
 
   try {
     const { email, password } = req.body;
-    const newUser = new User({
-      email,
-      password: md5(password),
+
+    // use bcrypt npm to encryption, password secure.
+    bcrypt.hash(password, saltRounds, async (err, hash) => {
+      const newUser = new User({
+        email,
+        password: hash,
+      });
+      await newUser.save();
+      res.status(201).json(newUser);
     });
-    await newUser.save();
-    res.status(201).json(newUser);
   } catch (error) {
     res.status(500).json(error.message);
   }
@@ -51,11 +57,16 @@ app.post("/register", async (req, res) => {
 app.post("/login", async (req, res) => {
   try {
     const email = req.body.email;
-    const password = md5(req.body.password);
+    const password = req.body.password;
     const existUser = await User.findOne({ email: email });
 
-    if (existUser && existUser.password === password) {
-      res.status(200).json({ status: "valid user" }); // we can send user to different page.
+    if (existUser) {
+      // Load hash from your password DB.
+      bcrypt.compare(password, existUser.password, (err, result) => {
+        if (result) {
+          res.status(200).json({ status: "valid user" }); // we can send user to different page.
+        }
+      });
     } else {
       res.status(404).json({ status: "User not found." });
     }
