@@ -3,6 +3,7 @@ const cors = require("cors");
 require("dotenv").config();
 const mongoose = require("mongoose");
 const User = require("./models/user.model");
+const md5 = require("md5"); // for encryption.
 
 const port = process.env.PORT || 5000;
 const app = express();
@@ -32,7 +33,11 @@ app.post("/register", async (req, res) => {
   const user = req.body;
 
   try {
-    const newUser = new User(req.body);
+    const { email, password } = req.body;
+    const newUser = new User({
+      email,
+      password: md5(password),
+    });
     await newUser.save();
     res.status(201).json(newUser);
   } catch (error) {
@@ -45,7 +50,8 @@ app.post("/register", async (req, res) => {
 // login user route
 app.post("/login", async (req, res) => {
   try {
-    const { email, password } = req.body;
+    const email = req.body.email;
+    const password = md5(req.body.password);
     const existUser = await User.findOne({ email: email });
 
     if (existUser && existUser.password === password) {
